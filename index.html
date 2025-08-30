@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Basic Calculator</title>
+  <link rel="stylesheet" href="style.css">
+  
+</head>
+<body>
+  <div class="calculator" role="application" aria-label="Basic Calculator">
+    <div class="screen" aria-live="polite" aria-atomic="true">
+      <div class="prev" id="prev"></div>
+      <div class="curr" id="curr">0</div>
+    </div>
+
+    <div class="keys" id="keys">
+      <button class="util" data-action="clear">AC</button>
+      <button class="util" data-action="delete">DEL</button>
+      <button class="op" data-op="%">%</button>
+      <button class="op" data-op="/">÷</button>
+
+      <button data-num="7">7</button>
+      <button data-num="8">8</button>
+      <button data-num="9">9</button>
+      <button class="op" data-op="*">×</button>
+
+      <button data-num="4">4</button>
+      <button data-num="5">5</button>
+      <button data-num="6">6</button>
+      <button class="op" data-op="-">−</button>
+
+      <button data-num="1">1</button>
+      <button data-num="2">2</button>
+      <button data-num="3">3</button>
+      <button class="op" data-op="+">+</button>
+
+      <button class="span-2" data-num="0">0</button>
+      <button data-num=".">.</button>
+      <button class="equal" data-action="equals">=</button>
+    </div>
+  </div>
+
+  <script>
+    const prevEl = document.getElementById('prev');
+    const currEl = document.getElementById('curr');
+    const keys = document.getElementById('keys');
+
+    let current = '0';
+    let previous = '';
+    let operation = null;
+    let justEvaluated = false;
+
+    const MAX_LEN = 16;
+
+    function updateScreen() {
+      currEl.textContent = current;
+      prevEl.textContent = operation && previous !== '' ? ${previous} ${symbol(operation)} : '';
+    }
+
+    function symbol(op) {
+      return ({ '*': '×', '/': '÷', '+': '+', '-': '−', '%': '%' })[op] || op;
+    }
+
+    function appendNumber(n) {
+      if (justEvaluated && !operation) { current = '0'; justEvaluated = false; }
+      if (n === '.' && current.includes('.')) return;
+      if (current === '0' && n !== '.') current = '';
+      if (current.length >= MAX_LEN) return;
+      current += n;
+      if (current === '.') current = '0.';
+      updateScreen();
+    }
+
+    function chooseOperation(op) {
+      if (current === '' || current === '−' || current === '.') return;
+      if (operation && previous !== '') {
+        evaluate();
+      }
+      operation = op;
+      previous = current;
+      current = '0';
+      justEvaluated = false;
+      updateScreen();
+    }
+
+    function clearAll() {
+      current = '0';
+      previous = '';
+      operation = null;
+      justEvaluated = false;
+      updateScreen();
+    }
+
+    function deleteOne() {
+      if (justEvaluated) { clearAll(); return; }
+      if (current.length <= 1 || (current.length === 2 && current.startsWith('-'))) {
+        current = '0';
+      } else {
+        current = current.slice(0, -1);
+      }
+      updateScreen();
+    }
+
+    function formatResult(val) {
+      // Limit to MAX_LEN characters; use exponential if needed
+      let out = String(val);
+      if (out.includes('e')) return out;
+      if (out.length > MAX_LEN) {
+        const num = Number(val);
+        out = num.toExponential(8).replace(/\.?0+e/, 'e');
+      } else if (out.includes('.')) {
+        // Trim trailing zeros after decimal
+        out = out.replace(/(\.\d*?[1-9])0+$/,'$1').replace(/\.$/, '');
+      }
+      return out;
+    }
+
+    function evaluate() {
+      if (operation === null || previous === '') return;
+      const a = Number(previous);
+      const b = Number(current);
+
+      let result;
+      if (operation === '+') result = a + b;
+      else if (operation === '-') result = a - b;
+      else if (operation === '*') result = a * b;
+      else if (operation === '/') result = b === 0 ? 'Error' : a / b;
+      else if (operation === '%') result = a % b;
+
+      current = result === 'Error' ? 'Error' : formatResult(result);
+      previous = '';
+      operation = null;
+      justEvaluated = true;
+      updateScreen();
+    }
+
+    // Event delegation for clicks
+    keys.addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (!btn) return;
+
+      if (btn.dataset.num !== undefined) {
+        appendNumber(btn.dataset.num);
+      } else if (btn.dataset.op !== undefined) {
+        chooseOperation(btn.dataset.op);
+      } else if (btn.dataset.action === 'equals') {
+        evaluate();
+      } else if (btn.dataset.action === 'clear') {
+        clearAll();
+      } else if (btn.dataset.action === 'delete') {
+        deleteOne();
+      }
+    });
+
+    // Keyboard support
+    const keyMap = {
+      'Enter': 'equals',
+      '=': 'equals',
+      'Backspace': 'delete',
+      'Delete': 'clear',
+      'c': 'clear',
+      'C': 'clear'
+    };
+    window.addEventListener('keydown', (e) => {
+      const { key } = e;
+      if ((key >= '0' && key <= '9') || key === '.') {
+        appendNumber(key);
+      } else if (['+', '-', '*', '/', '%'].includes(key)) {
+        chooseOperation(key);
+      } else if (keyMap[key] === 'equals') {
+        e.preventDefault();
+        evaluate();
+      } else if (keyMap[key] === 'delete') {
+        deleteOne();
+      } else if (keyMap[key] === 'clear') {
+        clearAll();
+      }
+    });
+
+    // Initialize
+    updateScreen();
+  </script>
+</body>
+</html>
